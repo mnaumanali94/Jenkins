@@ -1,0 +1,29 @@
+node {
+    dir(PROJECT_PATH) {
+    stash includes: '**', name: 'androidsdk'
+
+    try {
+        node('iMac') {
+        dir(API_DEF_NAME){
+            unstash 'androidsdk'
+            
+            stage 'Build'
+            sh 'gradle assembleAndroidTest'
+    
+            stage 'Push'
+            sh  "adb wait-for-device push ./${API_DEF_NAME}Lib/build/outputs/apk/${API_DEF_NAME}Lib-debug-androidTest-unaligned.apk /data/local/tmp/org3000.hopto.apimatic.test"
+            
+            stage 'Install'
+            sh  'adb wait-for-device shell pm install -r "/data/local/tmp/org3000.hopto.apimatic.test"'
+            
+            stage 'Test'
+            sh  'adb wait-for-device shell am instrument -w -r   -e package org3000.hopto.apimatic -e debug false org3000.hopto.apimatic.test/android.support.test.runner.AndroidJUnitRunner'
+            }
+        }
+        
+    } catch (err) {
+        slackSend color: 'danger', message: "   ‍      ‍   :heavy_multiplication_x: Android <${env.BUILD_URL}|Build#${env.BUILD_NUMBER}>: ${API_DEF_NAME} API - SDK tests failed."
+        throw err
+    }
+}
+}
